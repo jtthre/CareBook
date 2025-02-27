@@ -18,12 +18,12 @@ jobs:
       uses: docker/setup-buildx-action@v1
 
     - name: Build Docker image
-      run: docker build -t CareBook .
+      run: docker build -t careBook .
 
     - name: Scan image with Trivy
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: CareBook
+        image-ref: careBook
 
     - name: Deploy to production
       run: echo "Deploying application..."
