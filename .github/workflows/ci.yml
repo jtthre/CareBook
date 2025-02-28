@@ -24,7 +24,7 @@ jobs:
       run: trivy image -f json -o trivy-report.json carebook
 
     - name: Upload Trivy report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: trivy-report
         path: trivy-report.json
