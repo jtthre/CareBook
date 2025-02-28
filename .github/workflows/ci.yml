@@ -20,10 +20,11 @@ jobs:
     - name: Build Docker image
       run: docker build -t carebook .
 
-    - name: Scan image with Trivy
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: carebook
+    - name: Run Trivy scan
+      run: trivy image -f json -o trivy-report.json carebook
 
-    - name: Deploy to production
-      run: echo "Deploying application..."
+    - name: Upload Trivy report
+      uses: actions/upload-artifact@v2
+      with:
+        name: trivy-report
+        path: trivy-report.json
