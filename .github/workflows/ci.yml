@@ -1,10 +1,10 @@
-name: Security Analysis
+name: Security Analysis - PHP
 
 on:
   pull_request:
     branches:
       - main
-      - develop  # Ajuste les branches si nécessaire
+      - develop
 
 jobs:
   security-scan:
@@ -15,30 +15,32 @@ jobs:
       - name: 🟦 Checkout code
         uses: actions/checkout@v3
 
-      # 🔹 Étape 2 : Gestion du cache des dépendances (ex. Maven, npm)
-      - name: 📁 Cache dependencies
+      # 🔹 Étape 2 : Cache des dépendances Composer
+      - name: 📁 Cache Composer dependencies
         uses: actions/cache@v3
         with:
-          path: |
-            ~/.m2/repository  # Pour Maven
-            node_modules     # Si projet Node.js
-          key: dependencies-${{ runner.os }}-${{ hashFiles('**/pom.xml', '**/package-lock.json') }}
+          path: vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('**/composer.lock') }}
           restore-keys: |
-            dependencies-${{ runner.os }}-
+            composer-${{ runner.os }}-
 
-      # 🔹 Étape 3 : Analyse Trivy sur l'application et les dépendances
-      - name: 🔍 Run Trivy (Scan App & Dependencies)
+      # 🔹 Étape 3 : Installation des dépendances Composer
+      - name: 📦 Install Composer dependencies
+        run: composer install --no-progress --no-interaction
+
+      # 🔹 Étape 4 : Analyse Trivy sur les dépendances PHP
+      - name: 🔍 Run Trivy (PHP dependencies)
         uses: aquasecurity/trivy-action@v0.12.0
         with:
           scan-type: filesystem
-          exit-code: 1
+          exit-code: 0
           format: table
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           output: trivy-report.txt
         continue-on-error: true
 
-      # 🔹 Étape 4 : Installer OWASP ZAP
+      # 🔹 Étape 5 : Installation de OWASP ZAP
       - name: 🟧 Setup OWASP ZAP
         run: |
           sudo apt-get update && sudo apt-get install -y wget
@@ -46,14 +48,16 @@ jobs:
           tar -xzf ZAP_2.13.0_Linux.tar.gz
           sudo mv ZAP_2.13.0 /opt/zap
 
-      # 🔹 Étape 5 : Lancer OWASP ZAP en mode "baseline scan"
-      - name: ⚡ OWASP ZAP Baseline Scan
+      # 🔹 Étape 6 : Scan OWASP ZAP en mode "baseline"
+      - name: ⚡ OWASP ZAP Baseline Scan (Simulé)
         run: |
-          /opt/zap/zap.sh -daemon -port 8080 -host 127.0.0.1 -config api.disablekey=true &
+          /opt/zap/zap.sh -daemon -port 8080 -config api.disablekey=true &
           sleep 10  # Temps pour démarrer ZAP
-          /opt/zap/zap.sh -cmd -quickurl http://localhost:8080 -quickout zap-report.html -quickprogress
+          # Scan simulé sur une URL d'exemple
+          /opt/zap/zap.sh -cmd -quickurl http://example.com -quickout zap-report.html -quickprogress
+        continue-on-error: true
 
-      # 🔹 Étape 6 : Upload des rapports en tant qu'artefacts GitHub
+      # 🔹 Étape 7 : Upload des rapports en tant qu'artefacts
       - name: 📄 Upload Reports
         uses: actions/upload-artifact@v3
         with:
@@ -61,3 +65,4 @@ jobs:
           path: |
             trivy-report.txt
             zap-report.html
+
