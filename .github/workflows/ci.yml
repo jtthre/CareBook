@@ -1,10 +1,16 @@
 name: Security Analysis - Trivy Only
 
 on:
+  push:
+    branches:
+      - main
+      - develop  # Adapte selon tes branches principales
   pull_request:
     branches:
       - main
-      - develop  # Adapte si nécessaire
+      - develop
+  workflow_dispatch:  # Permet le déclenchement manuel
+  create:  # Déclenchement lors de la création d'un fichier (upload)
 
 jobs:
   trivy-scan:
