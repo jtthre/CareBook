@@ -1,37 +1,63 @@
-name: CI/CD Pipeline
+name: Security Analysis
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+      - develop  # Ajuste les branches si nécessaire
 
 jobs:
-  build:
+  security-scan:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+      # 🔹 Étape 1 : Checkout du code source
+      - name: 🟦 Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
-  
-    - name: Install Trivy
-      run: |
-        sudo apt-get update
-        sudo apt-get install wget -y
-        wget https://github.com/aquasecurity/trivy/releases/download/v0.19.2/trivy_0.19.2_Linux-64bit.deb
-        sudo dpkg -i trivy_0.19.2_Linux-64bit.deb
+      # 🔹 Étape 2 : Gestion du cache des dépendances (ex. Maven, npm)
+      - name: 📁 Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.m2/repository  # Pour Maven
+            node_modules     # Si projet Node.js
+          key: dependencies-${{ runner.os }}-${{ hashFiles('**/pom.xml', '**/package-lock.json') }}
+          restore-keys: |
+            dependencies-${{ runner.os }}-
 
-    - name: Build Docker image
-      run: docker build -t carebook .
+      # 🔹 Étape 3 : Analyse Trivy sur l'application et les dépendances
+      - name: 🔍 Run Trivy (Scan App & Dependencies)
+        uses: aquasecurity/trivy-action@v0.12.0
+        with:
+          scan-type: filesystem
+          exit-code: 1
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          output: trivy-report.txt
+        continue-on-error: true
 
-    - name: Run Trivy scan
-      run: trivy image -f json -o trivy-report.json carebook
+      # 🔹 Étape 4 : Installer OWASP ZAP
+      - name: 🟧 Setup OWASP ZAP
+        run: |
+          sudo apt-get update && sudo apt-get install -y wget
+          wget https://github.com/zaproxy/zaproxy/releases/download/v2.13.0/ZAP_2.13.0_Linux.tar.gz
+          tar -xzf ZAP_2.13.0_Linux.tar.gz
+          sudo mv ZAP_2.13.0 /opt/zap
 
-    - name: Upload Trivy report
-      uses: actions/upload-artifact@v4
-      with:
-        name: trivy-report
-        path: trivy-report.json
+      # 🔹 Étape 5 : Lancer OWASP ZAP en mode "baseline scan"
+      - name: ⚡ OWASP ZAP Baseline Scan
+        run: |
+          /opt/zap/zap.sh -daemon -port 8080 -host 127.0.0.1 -config api.disablekey=true &
+          sleep 10  # Temps pour démarrer ZAP
+          /opt/zap/zap.sh -cmd -quickurl http://localhost:8080 -quickout zap-report.html -quickprogress
+
+      # 🔹 Étape 6 : Upload des rapports en tant qu'artefacts GitHub
+      - name: 📄 Upload Reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: Security Reports
+          path: |
+            trivy-report.txt
+            zap-report.html
