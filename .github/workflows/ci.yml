@@ -1,38 +1,29 @@
-name: Security Analysis - Trivy Only
+name: Trivy Security Analysis
 
 on:
   push:
-    branches:
-      - main
-      - develop  # Adapte selon tes branches principales
+    branches: ["main", "develop"]  # Adapte selon tes branches principales
   pull_request:
-    branches:
-      - main
-      - develop
-  workflow_dispatch:  # Permet le déclenchement manuel
-  create:  # Déclenchement lors de la création d'un fichier (upload)
+    branches: ["main", "develop"]
+
+permissions:
+  contents: read
 
 jobs:
   trivy-scan:
     runs-on: ubuntu-latest
-
     steps:
       # 🔹 Étape 1 : Checkout du code source
       - name: 🟦 Checkout code
         uses: actions/checkout@v4
 
-      # 🔹 Étape 2 : Installation de Trivy
+      # 🔹 Étape 2 : Installation de Trivy via une Action GitHub fiable
       - name: 🔧 Install Trivy
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wget
-          wget https://github.com/aquasecurity/trivy/releases/download/v0.45.0/trivy_0.45.0_Linux-64bit.deb
-          sudo dpkg -i trivy_0.45.0_Linux-64bit.deb
+        uses: aquasecurity/trivy-action@v0.11.1  # Version stable et testée
 
       # 🔹 Étape 3 : Scan Trivy du repository entier
       - name: 🔍 Run Trivy Full Repository Scan
-        run: |
-          trivy fs . --exit-code 0 --format table --severity HIGH,CRITICAL --ignore-unfixed --output trivy-report.txt
+        run: trivy fs . --exit-code 0 --format table --severity HIGH,CRITICAL --ignore-unfixed --output trivy-report.txt
 
       # 🔹 Étape 4 : Upload du rapport d'analyse
       - name: 📄 Upload Trivy Report
