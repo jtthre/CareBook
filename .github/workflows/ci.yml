@@ -1,13 +1,13 @@
-name: Security Analysis - PHP
+name: Security Analysis - Trivy Only
 
 on:
   pull_request:
     branches:
       - main
-      - develop
+      - develop  # Adapte si nécessaire
 
 jobs:
-  security-scan:
+  trivy-scan:
     runs-on: ubuntu-latest
 
     steps:
@@ -15,54 +15,22 @@ jobs:
       - name: 🟦 Checkout code
         uses: actions/checkout@v3
 
-      # 🔹 Étape 2 : Cache des dépendances Composer
-      - name: 📁 Cache Composer dependencies
-        uses: actions/cache@v3
-        with:
-          path: vendor
-          key: composer-${{ runner.os }}-${{ hashFiles('**/composer.lock') }}
-          restore-keys: |
-            composer-${{ runner.os }}-
-
-      # 🔹 Étape 3 : Installation des dépendances Composer
-      - name: 📦 Install Composer dependencies
-        run: composer install --no-progress --no-interaction
-
-      # 🔹 Étape 4 : Analyse Trivy sur les dépendances PHP
-      - name: 🔍 Run Trivy (PHP dependencies)
-        uses: aquasecurity/trivy-action@v0.12.0
-        with:
-          scan-type: filesystem
-          exit-code: 0
-          format: table
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          output: trivy-report.txt
-        continue-on-error: true
-
-      # 🔹 Étape 5 : Installation de OWASP ZAP
-      - name: 🟧 Setup OWASP ZAP
+      # 🔹 Étape 2 : Installation de Trivy
+      - name: 🔧 Install Trivy
         run: |
-          sudo apt-get update && sudo apt-get install -y wget
-          wget https://github.com/zaproxy/zaproxy/releases/download/v2.13.0/ZAP_2.13.0_Linux.tar.gz
-          tar -xzf ZAP_2.13.0_Linux.tar.gz
-          sudo mv ZAP_2.13.0 /opt/zap
+          sudo apt-get update
+          sudo apt-get install -y wget
+          wget https://github.com/aquasecurity/trivy/releases/download/v0.45.0/trivy_0.45.0_Linux-64bit.deb
+          sudo dpkg -i trivy_0.45.0_Linux-64bit.deb
 
-      # 🔹 Étape 6 : Scan OWASP ZAP en mode "baseline"
-      - name: ⚡ OWASP ZAP Baseline Scan (Simulé)
+      # 🔹 Étape 3 : Scan Trivy du repository entier
+      - name: 🔍 Run Trivy Full Repository Scan
         run: |
-          /opt/zap/zap.sh -daemon -port 8080 -config api.disablekey=true &
-          sleep 10  # Temps pour démarrer ZAP
-          # Scan simulé sur une URL d'exemple
-          /opt/zap/zap.sh -cmd -quickurl http://example.com -quickout zap-report.html -quickprogress
-        continue-on-error: true
+          trivy fs . --exit-code 0 --format table --severity HIGH,CRITICAL --ignore-unfixed --output trivy-report.txt
 
-      # 🔹 Étape 7 : Upload des rapports en tant qu'artefacts
-      - name: 📄 Upload Reports
+      # 🔹 Étape 4 : Upload du rapport d'analyse
+      - name: 📄 Upload Trivy Report
         uses: actions/upload-artifact@v3
         with:
-          name: Security Reports
-          path: |
-            trivy-report.txt
-            zap-report.html
-
+          name: Trivy Report
+          path: trivy-report.txt
