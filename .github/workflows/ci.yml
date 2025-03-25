@@ -19,7 +19,7 @@ jobs:
     steps:
       # 🔹 Étape 1 : Checkout du code source
       - name: 🟦 Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # 🔹 Étape 2 : Installation de Trivy
       - name: 🔧 Install Trivy
@@ -36,7 +36,7 @@ jobs:
 
       # 🔹 Étape 4 : Upload du rapport d'analyse
       - name: 📄 Upload Trivy Report
-        uses: actions/upload-artifact@v2.1.1
+        uses: actions/upload-artifact@v3
         with:
           name: Trivy Report
           path: trivy-report.txt
