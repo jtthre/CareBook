@@ -6,28 +6,52 @@ on:
   pull_request:
     branches: ["main", "develop"]
 
-permissions:
-  contents: read
-
 jobs:
   trivy-scan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      # 🔹 Étape 1 : Checkout du code source
-      - name: 🟦 Checkout code
+      - name: Check out Git repository
         uses: actions/checkout@v4
 
-      # 🔹 Étape 2 : Installation de Trivy via une Action GitHub fiable
-      - name: 🔧 Install Trivy
-        uses: aquasecurity/trivy-action@v0.11.1  # Version stable et testée
-
-      # 🔹 Étape 3 : Scan Trivy du repository entier
-      - name: 🔍 Run Trivy Full Repository Scan
-        run: trivy fs . --exit-code 0 --format table --severity HIGH,CRITICAL --ignore-unfixed --output trivy-report.txt
-
-      # 🔹 Étape 4 : Upload du rapport d'analyse
-      - name: 📄 Upload Trivy Report
-        uses: actions/upload-artifact@v3
+      # Scan Trivy complet (JSON)
+      - name: Generate Trivy Vulnerability Report (JSON)
+        uses: aquasecurity/trivy-action@master
         with:
-          name: Trivy Report
-          path: trivy-report.txt
+          scan-type: "fs"
+          output: trivy-report.json
+          format: json
+          scan-ref: .
+          exit-code: 0
+
+      - name: Upload Vulnerability Scan Results (JSON)
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report-json
+          path: trivy-report.json
+          retention-days: 30
+
+      # Scan Trivy bloquant (HIGH/CRITICAL)
+      - name: Fail build on High/Critical Vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          format: table
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
+          skip-setup-trivy: true
+
+      # (Optionnel) Scan de conteneur Docker
+      - name: Build Docker image for Trivy scan
+        run: docker build -t my-image:latest .
+
+      - name: Trivy Docker Scan (Container)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "image"
+          image-ref: my-image:latest
+          severity: HIGH,CRITICAL
+          exit-code: 1
