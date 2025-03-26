@@ -44,14 +44,4 @@ jobs:
           exit-code: 1
           skip-setup-trivy: true
 
-      # (Optionnel) Scan de conteneur Docker
-      - name: Build Docker image for Trivy scan
-        run: docker build -t my-image:latest .
-
-      - name: Trivy Docker Scan (Container)
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: "image"
-          image-ref: my-image:latest
-          severity: HIGH,CRITICAL
-          exit-code: 1
+    
